@@ -1,0 +1,77 @@
+==================================================
+GNU MAKE: TẠO VÀ SỬ DỤNG MAKEFILE
+==================================================
+
+
+1. TẠO MAKEFILE
+--------------------------------------------------
+
+    vim Makefile
+
+Mở (hoặc tạo mới nếu chưa có) file tên "Makefile" bằng vim.
+
+
+2. CHẠY MAKEFILE
+--------------------------------------------------
+
+Cú pháp:
+
+    make <target>
+
+(make + tên rule. Tên rule gọi là "target")
+
+Ví dụ:
+
+    make rule1      # chạy target rule1
+    make            # không ghi target: chạy target ĐẦU TIÊN trong file
+
+Default goal: khi chỉ gõ "make", Make sẽ chạy target đầu tiên của file.
+
+
+3. THƯ MỤC CÓ NHIỀU MAKEFILE THÌ SAO?
+--------------------------------------------------
+
+Ví dụ trong thư mục có thêm file abcd.mk:
+
+    # abcd.mk
+    hello:
+    <TAB>@echo "hello, I'm abcd.mk"
+
+(Lưu ý: dòng lệnh phải bắt đầu bằng ký tự Tab, không phải dấu cách.
+ Phải có tên target phía trên, nếu không sẽ báo lỗi
+ "recipe commences before first target".)
+
+* Chỉ gõ "make":
+  Make tự tìm file theo thứ tự ưu tiên:
+      GNUmakefile -> makefile -> Makefile
+  File abcd.mk không nằm trong danh sách này nên sẽ KHÔNG được chạy.
+
+* Muốn chỉ định file cụ thể, dùng -f:
+
+    make -f abcd.mk           # chạy target đầu tiên trong abcd.mk
+    make -f abcd.mk hello     # chạy target "hello" trong abcd.mk
+
+  -f là viết tắt của --file: chỉ định makefile cần đọc.
+
+
+4. LƯU Ý
+--------------------------------------------------
+
+- Nếu Makefile có dòng "include abcd.mk" và abcd.mk chứa target ở
+  đầu file, target đó có thể trở thành default goal thay vì target
+  bạn muốn.
+  => Nên đặt .PHONY và target mặc định (thường là "all") lên đầu
+     Makefile để tránh nhầm.
+
+
+5. TỪ VỰNG TIẾNG ANH
+--------------------------------------------------
+
+English                  | Tiếng Việt
+-------------------------+----------------------------------
+target                   | mục tiêu (tên rule)
+default goal             | target mặc định (target đầu tiên)
+makefile                 | file mô tả cách build
+specify                  | chỉ định
+priority / precedence    | thứ tự ưu tiên
+recipe                   | các dòng lệnh trong rule
