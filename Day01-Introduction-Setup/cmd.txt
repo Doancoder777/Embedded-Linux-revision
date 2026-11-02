@@ -1,0 +1,3 @@
+example  hello.c  include  main.c
+
+sigma@sigma-GF63-Thin-9RCX:~/Desktop/working_space/buoi1$ gcc -o example main.c hello.c -I include/
