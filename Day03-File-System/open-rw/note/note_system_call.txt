@@ -1,0 +1,42 @@
+# ===== 3 CÁCH GHI "hello" VÀO FILE =====
+
+# Cách A: stdio
+# Là gì: thư viện nhập/xuất chuẩn của C, làm việc với FILE*.
+# Có buffer (vùng đệm): dữ liệu gom lại rồi mới gửi xuống kernel.
+
+FILE *fp = fopen("a.txt", "w");
+fprintf(fp, "hello\n");
+fclose(fp);
+
+
+# Cách B: POSIX I/O  <- mình đang dùng
+# Là gì: các hàm glibc bọc system call (open, write, close...),
+# làm việc với fd (số nguyên đại diện file đang mở).
+# Không có buffer của stdio: gọi write là đẩy xuống kernel ngay.
+
+int fd = open("a.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+write(fd, "hello\n", 6);
+close(fd);
+
+
+# Cách C: syscall thô
+# Là gì: gọi system call bằng SỐ HIỆU (SYS_write) qua hàm syscall(),
+# không dùng hàm bọc write().
+# Cần: #define _GNU_SOURCE  và  #include <sys/syscall.h>
+# fd lấy từ open() như cách B.
+
+syscall(SYS_write, fd, "hello\n", 6);
+
+
+# ===== SO SÁNH =====
+
+#              Làm việc với   Buffer   Số system call        Dùng khi
+# A stdio      FILE*          Có       ít (gom lại)          log, file văn bản
+# B POSIX I/O  fd             Không    mỗi write = 1 lần     /dev, thiết bị
+# C syscall    fd + số hiệu   Không    mỗi lệnh = 1 lần      rất hiếm
+
+# Đã chạy thử: 1000 lần write 1 byte = 1000 system call,
+#              1000 lần fputc        = 1 system call.
+
+# Nhược điểm của C: số hiệu khác nhau theo CPU
+# (write: x86-64 = 1, ARM 64-bit = 64) nên code dễ hỏng khi đổi board.

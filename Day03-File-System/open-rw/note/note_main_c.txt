@@ -1,0 +1,194 @@
+# ============================================================
+# FILE I/O BẰNG SYSTEM CALL (open, write, lseek, close, read)
+# ============================================================
+
+# System call: hàm gọi thẳng vào nhân (kernel) của Linux.
+# Khác với fopen/fprintf (thư viện stdio, có bộ đệm, dùng FILE*).
+
+# Header cần include:
+#   <fcntl.h>   : open, các cờ O_RDWR, O_CREAT...
+#   <unistd.h>  : read, write, lseek, close
+#   <string.h>  : strlen
+#   <stdio.h>   : printf, perror
+
+
+# ------------------------------------------------------------
+# File descriptor (fd)
+# ------------------------------------------------------------
+
+# fd = số nguyên nhỏ, đại diện cho một file đang mở.
+#   0 = stdin    1 = stdout    2 = stderr
+# open() trả về số nhỏ nhất chưa dùng: file đầu tiên mình mở là 3.
+# Lỗi: các hàm trả về -1 và đặt biến errno (in lý do bằng perror).
+
+
+# ------------------------------------------------------------
+# open
+# ------------------------------------------------------------
+
+int open(const char *pathname, int flags, mode_t mode);
+
+# pathname : đường dẫn file
+# flags    : cách mở, ghép bằng toán tử | (bitwise OR)
+# mode     : quyền của file, CHỈ dùng khi file được tạo mới (O_CREAT)
+# Trả về   : fd (>= 0), hoặc -1 nếu lỗi
+
+# Chọn ĐÚNG MỘT trong ba:
+#   O_RDONLY : chỉ đọc
+#   O_WRONLY : chỉ ghi
+#   O_RDWR   : đọc và ghi
+
+# Cờ thêm (ghép bằng |):
+#   O_CREAT  : chưa có file thì tạo (bắt buộc kèm mode)
+#   O_TRUNC  : file đã có thì xóa sạch nội dung (cắt về 0 byte)
+#   O_APPEND : luôn ghi vào cuối file
+#   O_EXCL   : đi cùng O_CREAT, file đã có thì báo lỗi
+
+# mode (số bát phân, 3 chữ số: chủ file | nhóm | người khác)
+#   4 = r (đọc)    2 = w (ghi)    1 = x (chạy)
+#   0644 = rw-r--r--     0666 = rw-rw-rw-
+# Quyền thật = mode & ~umask (xem mục umask bên dưới).
+
+
+# ------------------------------------------------------------
+# umask
+# ------------------------------------------------------------
+
+umask          # xem umask hiện tại
+umask 022      # đặt umask (chỉ có tác dụng trong terminal hiện tại)
+
+# umask = "mặt nạ" (mask): những quyền bị LOẠI BỎ khi tạo file/thư mục MỚI.
+# Quyền thật = mode & ~umask
+# mode là quyền mà chương trình xin: tham số mode của open(),
+# gcc xin 0777 khi tạo file thực thi, trình soạn thảo thường xin 0666.
+
+# Ví dụ, chương trình xin mode 0777 (đã chạy thử):
+#   umask 022 -> 0755 = rwxr-xr-x
+#   umask 002 -> 0775 = rwxrwxr-x
+#   umask 077 -> 0700 = rwx------
+
+# Ý nghĩa các giá trị hay gặp:
+#   022 : nhóm và người khác chỉ đọc được
+#   002 : nhóm ghi được (hợp khi làm việc nhóm)
+#   077 : chỉ chủ file có quyền (dữ liệu nhạy cảm)
+
+# Tác dụng của umask: file mới không bị cấp quá nhiều quyền,
+# dù chương trình xin quyền rộng.
+
+# Cần nhớ:
+#   1. umask chỉ tác dụng lúc TẠO file mới. chmod không bị umask ảnh hưởng.
+#   2. File đã tồn tại thì open() bỏ qua mode: đổi mode trong code
+#      không đổi quyền file cũ. Muốn thử lại phải xóa file trước.
+#   3. Mở terminal mới thì umask về giá trị mặc định.
+
+
+# ------------------------------------------------------------
+# Tình huống đã gặp: xin 0777 nhưng file chỉ có 0775
+# ------------------------------------------------------------
+
+# Code:
+fd = open("hello.txt", O_RDWR | O_CREAT, 0777);
+
+# Mong đợi : -rwxrwxrwx
+# Thực tế  : -rwxrwxr-x   (người khác bị mất quyền w)
+# File app do gcc tạo ra cũng là -rwxrwxr-x.
+
+# Nguyên nhân: umask của máy là 0002 (xác nhận bằng lệnh umask).
+#   mode xin  : rwx rwx rwx   (0777)
+#   umask 002 : --- --- -w-   (quyền bị loại)
+#   kết quả   : rwx rwx r-x   (0775)
+# Đây không phải lỗi, là hành vi bình thường của hệ thống.
+
+# Cách kiểm chứng (đã chạy thử):
+rm -f hello.txt
+umask 000
+./app
+ls -l hello.txt      # -rwxrwxrwx
+umask 002            # trả lại như cũ
+
+# Phải rm -f hello.txt trước, vì file đã tồn tại thì open() bỏ qua mode.
+
+
+# ------------------------------------------------------------
+# write
+# ------------------------------------------------------------
+
+ssize_t write(int fd, const void *buf, size_t count);
+
+# fd    : file cần ghi
+# buf   : vùng nhớ chứa dữ liệu cần ghi
+# count : số byte muốn ghi
+# Trả về: số byte đã ghi, hoặc -1 nếu lỗi
+# Ghi tại vị trí hiện tại (offset) của fd, ghi xong offset tăng lên.
+
+
+# ------------------------------------------------------------
+# lseek
+# ------------------------------------------------------------
+
+off_t lseek(int fd, off_t offset, int whence);
+
+# offset : số byte cần dịch
+# whence : dịch tính từ đâu
+#   SEEK_SET : từ đầu file
+#   SEEK_CUR : từ vị trí hiện tại
+#   SEEK_END : từ cuối file
+# Trả về : vị trí mới (tính từ đầu file), hoặc -1 nếu lỗi
+# Ví dụ: lseek(fd, 0, SEEK_END) trả về kích thước file.
+
+
+# ------------------------------------------------------------
+# read
+# ------------------------------------------------------------
+
+ssize_t read(int fd, void *buf, size_t count);
+
+# fd    : file cần đọc
+# buf   : vùng nhớ chứa dữ liệu đọc được
+# count : số byte tối đa muốn đọc
+# Trả về: số byte đọc được, 0 nếu hết file (EOF), -1 nếu lỗi
+# Đọc từ vị trí hiện tại (offset), đọc xong offset tăng lên.
+
+# read KHÔNG tự thêm '\0' vào cuối. Muốn in bằng printf("%s"):
+n = read(fd, buf, sizeof(buf) - 1);     // chừa 1 byte cho '\0'
+buf[n] = '\0';
+
+# Sau khi write, offset đang ở cuối file.
+# Muốn đọc lại từ đầu phải lseek(fd, 0, SEEK_SET) trước,
+# nếu không read trả về 0 (EOF).
+
+
+# ------------------------------------------------------------
+# close
+# ------------------------------------------------------------
+
+int close(int fd);
+
+# Đóng file. Trả về 0 nếu thành công, -1 nếu lỗi.
+
+
+# ------------------------------------------------------------
+# Chương trình ví dụ: kết quả
+# ------------------------------------------------------------
+
+# write "hello world\n" (12 byte)  ->  hello world\n
+# lseek(fd, 2, SEEK_SET)           ->  nhảy tới byte 2
+# write 12 chữ A                   ->  đè từ byte 2, file dài ra 14 byte
+# lseek(fd, 0, SEEK_SET)           ->  về đầu file
+# read vào buf2                    ->  đọc được 14 byte: heAAAAAAAAAAAA
+# Kết quả file: heAAAAAAAAAAAA  (14 byte, mất ký tự xuống dòng)
+
+# Kiểm tra kết quả:
+#   cat -A hello.txt      # $ cuối dòng = ký tự xuống dòng
+#   ls -l hello.txt       # xem quyền và kích thước
+
+
+# ------------------------------------------------------------
+# LƯU Ý (lỗi hay gặp)
+# ------------------------------------------------------------
+
+# 1. char buf[12] = "hello world\n"  -> không có chỗ cho '\0', strlen đọc lố.
+#    Dùng: char buf[] = "hello world\n";
+# 2. open lỗi (-1) phải dừng chương trình: perror("open"); return 1;
+# 3. Không có O_TRUNC: ghi vào file cũ chỉ đè đầu file, phần cuối còn nguyên.
+# 4. Luôn kiểm tra giá trị trả về của open, write, read, close.
