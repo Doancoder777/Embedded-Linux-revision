@@ -75,7 +75,10 @@ int main(int argc, char const *argv[])
 
     pthread_mutex_lock(&lock);              /* bước 1 */
 
-    /* Kiểm tra điều kiện trước, chưa đủ mới wait.
+    /*    
+    Kiểm tra điều kiện trước, chưa đủ mới wait.
+    trong code có thể bỏ vòng while, nhưng để an toàn thì nên có vòng while.
+    tránh đánh bị bug thức giả khi đi làm
        Thread 1 chạy xong trước thì counter đã đủ, main không cần wait,
        nên signal tới sớm cũng không làm treo. */
     while (counter != THRESHOLD) {

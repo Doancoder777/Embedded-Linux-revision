@@ -1,0 +1,3 @@
+git add Day07-Pipe-FIFO
+git commit -m "Day 07: Pipe & FIFO"
+git push
