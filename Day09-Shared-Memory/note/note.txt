@@ -1,0 +1,14 @@
+=====
+SHARED LIBRARY (libc.so.6) = PRIVATE FILE MAPPING
+=====
+
+mmap(..., MAP_PRIVATE, fd_của_file_libc.so.6, ...)
+   - MAP_PRIVATE       -> private
+   - có fd của file .so -> file mapping (không có MAP_ANONYMOUS)
+
+Cách hoạt động:
+- File libc.so.6 được nạp vào RAM MỘT LẦN.
+- Process A, B, C đều map (ánh xạ) vào cùng vùng RAM đó.
+- Các process chỉ ĐỌC. Nếu có ai lỡ ghi thì copy-on-write:
+  tạo bản sao riêng cho process đó, không ảnh hưởng process khác,
+  và file .so không bị đổi.
