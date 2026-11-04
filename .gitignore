@@ -34,3 +34,6 @@ Thumbs.db
 
 # Local Linux embedded workspace
 /linux_embeded/
+
+# Temporary file
+/temp
